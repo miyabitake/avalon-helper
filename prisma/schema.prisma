@@ -1,0 +1,188 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Alignment {
+  GOOD
+  EVIL
+}
+
+enum Role {
+  MERLIN
+  PERCIVAL
+  ASSASSIN
+  MORGANA
+  OBERON
+  MORDRED
+  LOYAL_SERVANT
+  MINION
+}
+
+enum RoomStatus {
+  LOBBY
+  ROLE_ASSIGNED
+  ROLE_VIEWING
+  TEAM_PROPOSAL
+  TEAM_VOTING
+  TEAM_VOTE_RESULT
+  QUEST_SUBMISSION
+  QUEST_RESULT
+  ASSASSINATION
+  GAME_OVER
+}
+
+enum Winner {
+  GOOD
+  EVIL
+}
+
+enum GameOverReason {
+  COMPLETED
+  PLAYER_LEFT
+}
+
+enum AssassinationMode {
+  MANUAL
+  VICTORY
+}
+
+enum ProposalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TeamVoteValue {
+  APPROVE
+  REJECT
+}
+
+enum QuestSubmissionValue {
+  SUCCESS
+  FAIL
+}
+
+model Room {
+  id                 String              @id @default(cuid())
+  code               String              @unique
+  status             RoomStatus          @default(LOBBY)
+  isLocked           Boolean             @default(false)
+  hostPlayerId       String?
+  currentRound       Int                 @default(1)
+  proposalAttempt    Int                 @default(1)
+  currentLeaderIndex Int                 @default(0)
+  goodQuestWins      Int                 @default(0)
+  evilQuestWins      Int                 @default(0)
+  winner             Winner?
+  gameOverReason     GameOverReason?
+  assassinationMode  AssassinationMode?
+  enabledRoles       Json?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  players            Player[]
+  proposals          Proposal[]
+  quests             Quest[]
+  assassination      Assassination?
+  snapshots          GameStateSnapshot[]
+}
+
+model Player {
+  id             String    @id @default(cuid())
+  roomId         String
+  room           Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  nickname       String
+  seatIndex      Int
+  isHost         Boolean   @default(false)
+  role           Role?
+  alignment      Alignment?
+  sessionToken   String
+  isConnected    Boolean   @default(true)
+  hasViewedRole  Boolean   @default(false)
+  lastSeenAt     DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  teamVotes      TeamVote[]
+  submissions    QuestSubmission[]
+
+  @@unique([roomId, seatIndex])
+  @@unique([roomId, sessionToken])
+}
+
+model Proposal {
+  id            String          @id @default(cuid())
+  roomId        String
+  room          Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  round         Int
+  attempt       Int
+  leaderPlayerId String
+  teamPlayerIds String[]
+  status        ProposalStatus  @default(PENDING)
+  createdAt     DateTime        @default(now())
+  votes         TeamVote[]
+  quest         Quest?
+
+  @@unique([roomId, round, attempt])
+}
+
+model TeamVote {
+  id         String        @id @default(cuid())
+  proposalId String
+  proposal   Proposal     @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  playerId   String
+  player     Player       @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  vote       TeamVoteValue
+  createdAt  DateTime     @default(now())
+
+  @@unique([proposalId, playerId])
+}
+
+model Quest {
+  id            String            @id @default(cuid())
+  roomId        String
+  room          Room              @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  proposalId    String            @unique
+  proposal      Proposal          @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  round         Int
+  teamPlayerIds String[]
+  failCount     Int?
+  success       Boolean?
+  createdAt     DateTime          @default(now())
+  submissions   QuestSubmission[]
+}
+
+model QuestSubmission {
+  id        String               @id @default(cuid())
+  questId   String
+  quest     Quest                @relation(fields: [questId], references: [id], onDelete: Cascade)
+  playerId  String
+  player    Player               @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  result    QuestSubmissionValue
+  createdAt DateTime             @default(now())
+
+  @@unique([questId, playerId])
+}
+
+model Assassination {
+  id               String   @id @default(cuid())
+  roomId           String   @unique
+  room             Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  assassinPlayerId String
+  targetPlayerId   String
+  hitMerlin        Boolean
+  createdAt        DateTime @default(now())
+}
+
+model GameStateSnapshot {
+  id        String     @id @default(cuid())
+  roomId    String
+  room      Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  fromStatus RoomStatus
+  payload   Json
+  createdAt DateTime   @default(now())
+
+  @@index([roomId, fromStatus, createdAt])
+}
