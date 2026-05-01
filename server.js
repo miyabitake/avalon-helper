@@ -4,7 +4,10 @@ const { Server } = require("socket.io");
 const { PrismaClient } = require("@prisma/client");
 
 const dev = process.env.NODE_ENV !== "production";
-const hostname = process.env.HOSTNAME || (dev ? "127.0.0.1" : "0.0.0.0");
+// In hosted environments like Railway, HOSTNAME is often set to a container
+// identifier rather than a bindable public interface. Bind production traffic
+// to 0.0.0.0 explicitly so the platform router can reach the app.
+const hostname = dev ? "127.0.0.1" : "0.0.0.0";
 const port = Number(process.env.PORT || 3000);
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
