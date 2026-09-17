@@ -4,6 +4,9 @@ import { buildPublicGameState } from "@/game/serializers";
 function room(status: "LOBBY" | "TEAM_PROPOSAL") {
   return {
     id: "room",
+    ladyHolderId: null,
+    ladyPreviousHolders: [],
+    ladyRecords: [],
     code: "ABC123",
     status,
     isLocked: false,

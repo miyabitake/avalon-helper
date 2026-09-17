@@ -1,5 +1,6 @@
 import { Prisma, type Player, type Proposal, type Quest, type QuestSubmission, type Room, type TeamVote } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { assertLadyTarget, needsLadyInspection, readLadyRecords } from "@/game/lady";
 import { assertHost } from "@/lib/auth";
 import { broadcastRoomUpdate } from "@/lib/socketEvents";
 import { MAX_PROPOSAL_ATTEMPTS, ROLE_ALIGNMENT } from "@/game/constants";
@@ -138,6 +139,9 @@ async function assignGameSetup(room: LoadedRoom, enabledRoles?: EnabledRoles, re
         currentRound: 1,
         proposalAttempt: 1,
         currentLeaderIndex: initialLeaderIndex,
+        ladyHolderId: playerCount === 10 ? room.players[(initialLeaderIndex + playerCount - 1) % playerCount].id : null,
+        ladyPreviousHolders: [],
+        ladyRecords: [],
         goodQuestWins: 0,
         evilQuestWins: 0,
         winner: null,
@@ -190,6 +194,9 @@ export async function restartGame(code: string, actor: Player) {
       where: { id: room.id },
       data: {
         status: "LOBBY",
+        ladyHolderId: null,
+        ladyPreviousHolders: [],
+        ladyRecords: [],
         isLocked: false,
         currentRound: 1,
         proposalAttempt: 1,
@@ -211,10 +218,11 @@ export async function callAssassination(code: string, actor: Player) {
   assertActionAllowed(room.status, "CALL_ASSASSINATION");
   if (actor.role !== "ASSASSIN") throw new GameError("ASSASSIN_ONLY", "只有刺客可以发起刺杀。", 403);
   await snapshot(room);
-  await prisma.room.update({
-    where: { id: room.id },
+  const changed = await prisma.room.updateMany({
+    where: { id: room.id, status: room.status, currentRound: room.currentRound },
     data: { status: "ASSASSINATION", assassinationMode: "MANUAL" }
   });
+  if (!changed.count) throw new GameError("STATE_CHANGED", "流程已变化，请刷新后重试。");
   broadcastRoomUpdate(code);
 }
 
@@ -327,16 +335,16 @@ async function resolveQuest(code: string, room: LoadedRoom, quest: Quest) {
   const goodQuestWins = room.goodQuestWins + (success ? 1 : 0);
   const evilQuestWins = room.evilQuestWins + (success ? 0 : 1);
   const winner = evilQuestWins >= 3 ? "EVIL" : null;
-  const advancesToNextRound = evilQuestWins < 3 && goodQuestWins < 3;
-  const status = evilQuestWins >= 3 ? "GAME_OVER" : goodQuestWins >= 3 ? "ASSASSINATION" : "TEAM_PROPOSAL";
+  const inspectLady = needsLadyInspection(quest.round, room.ladyHolderId, goodQuestWins, evilQuestWins);
+  const advancesToNextRound = evilQuestWins < 3 && goodQuestWins < 3 && !inspectLady;
+  const status = evilQuestWins >= 3 ? "GAME_OVER" : goodQuestWins >= 3 ? "ASSASSINATION" : inspectLady ? "LADY_INSPECTION" : "TEAM_PROPOSAL";
   if (goodQuestWins >= 3) {
     await snapshot(room);
   }
 
-  await prisma.$transaction([
-    prisma.quest.update({ where: { id: quest.id }, data: { failCount, success } }),
-    prisma.room.update({
-      where: { id: room.id },
+  await prisma.$transaction(async (tx) => {
+    const changed = await tx.room.updateMany({
+      where: { id: room.id, status: "QUEST_SUBMISSION", currentRound: quest.round, goodQuestWins: room.goodQuestWins, evilQuestWins: room.evilQuestWins },
       data: {
         goodQuestWins,
         evilQuestWins,
@@ -348,8 +356,38 @@ async function resolveQuest(code: string, room: LoadedRoom, quest: Quest) {
         proposalAttempt: advancesToNextRound ? 1 : room.proposalAttempt,
         currentLeaderIndex: advancesToNextRound ? nextLeaderIndex(room) : room.currentLeaderIndex
       }
-    })
-  ]);
+    });
+    if (!changed.count) return;
+    await tx.quest.update({ where: { id: quest.id }, data: { failCount, success } });
+  });
+  broadcastRoomUpdate(code);
+}
+
+export async function inspectLady(code: string, actor: Player, targetPlayerId: string, round: number) {
+  await prisma.$transaction(async (tx) => {
+    const room = await tx.room.findUnique({ where: { code }, include: roomInclude() });
+    if (!room) throw new GameError("ROOM_NOT_FOUND", "房间不存在。", 404);
+    assertActionAllowed(room.status, "INSPECT_LADY");
+    if (round !== room.currentRound) throw new GameError("STATE_CHANGED", "查验轮次已变化，请刷新。");
+    assertLadyTarget(room.ladyHolderId, room.ladyPreviousHolders, actor.id, targetPlayerId);
+    const target = room.players.find((p) => p.id === targetPlayerId);
+    if (!target?.alignment) throw new GameError("INVALID_TARGET", "查验目标不存在。");
+    const records = readLadyRecords(room.ladyRecords);
+    if (records.some((r) => r.round === round)) throw new GameError("LADY_ALREADY_USED", "本轮已完成查验。");
+    const changed = await tx.room.updateMany({
+      where: { id: room.id, status: "LADY_INSPECTION", currentRound: round, ladyHolderId: actor.id },
+      data: {
+        ladyRecords: [...records, { round, inspectorId: actor.id, targetId: target.id, alignment: target.alignment }],
+        ladyPreviousHolders: [...room.ladyPreviousHolders, actor.id],
+        ladyHolderId: target.id,
+        status: "TEAM_PROPOSAL",
+        currentRound: round + 1,
+        proposalAttempt: 1,
+        currentLeaderIndex: nextLeaderIndex(room)
+      }
+    });
+    if (!changed.count) throw new GameError("STATE_CHANGED", "流程已变化，查验未执行。");
+  });
   broadcastRoomUpdate(code);
 }
 

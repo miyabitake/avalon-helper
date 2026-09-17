@@ -38,6 +38,9 @@ export function GameRecords({ state }: { state: PublicGameState }) {
                     <div><b>任务结果：</b>{quest.success ? "成功" : "失败"}</div>
                     <div className="muted">任务队伍：{names(quest.teamPlayerIds, state)}</div>
                     <div>失败票：{quest.failCount} 票</div>
+                    {state.lady?.history.filter((record) => record.round === quest.round).map((record) => (
+                      <div key={record.round}>湖中仙女：{names([record.inspectorId], state)} 查验了 {names([record.targetId], state)}</div>
+                    ))}
                   </div>
                 ) : null}
               </div>

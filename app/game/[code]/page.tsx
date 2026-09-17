@@ -33,6 +33,8 @@ export default function GamePage() {
   const currentLeader = publicState.players.find((player) => player.id === publicState.currentLeaderId) ?? null;
   const isCurrentLeader = publicState.currentLeaderId === privateView.playerId;
   const revealedEvilPlayers = publicState.assassinationRevealPlayers;
+  const ladyHolder = publicState.players.find((p) => p.id === publicState.lady?.holderId);
+  const ladyTargets = publicState.players.filter((p) => p.id !== publicState.lady?.holderId && !publicState.lady?.previousHolderIds.includes(p.id));
   const isCurrentQuestMember = publicState.currentTeamPlayerIds.includes(privateView.playerId);
   const rejectedAttemptsThisRound = Math.max(0, publicState.proposalAttempt - 1);
   const stageLabel =
@@ -63,6 +65,7 @@ export default function GamePage() {
         </div>
       </div>
       {error ? <div className="error">{error}</div> : null}
+      {privateView.ladyResults?.length ? <div className="muted">你已完成湖中仙女查验，结果可在下方“显示身份”中查看。</div> : null}
 
       <section className="panel stack">
         <div className="section-title">当前流程</div>
@@ -81,10 +84,21 @@ export default function GamePage() {
           </div>
         ) : null}
         <div className="muted">{flowHint(publicState.status, isCurrentLeader)}</div>
+        {ladyHolder ? <div className="row"><span>湖中仙女持有者</span><b>{formatPlayerLabel(ladyHolder)}</b></div> : null}
       </section>
 
       <section className="panel stack">
         <div className="section-title">本轮操作</div>
+        {publicState.status === "LADY_INSPECTION" ? (
+          privateView.allowedActions.includes("INSPECT_LADY") ? <>
+            <div>第 {publicState.currentRound} 轮任务已结束，请选择查验对象。</div>
+            <PlayerList players={ladyTargets} selectedIds={selected.slice(0, 1)} onToggle={(id) => setSelected([id])} />
+            <button className="btn" disabled={selected.length !== 1 || !ladyTargets.some((p) => p.id === selected[0])} onClick={async () => {
+              const result = await act("lady", { targetPlayerId: selected[0], round: publicState.currentRound });
+              if (result) setSelected([]);
+            }}>确认查验阵营</button>
+          </> : <div>等待 {ladyHolder ? formatPlayerLabel(ladyHolder) : "持有者"} 使用湖中仙女。</div>
+        ) : null}
         {publicState.status === "TEAM_PROPOSAL" && privateView.allowedActions.includes("PROPOSE_TEAM") ? (
           <>
             {rejectedAttemptsThisRound > 0 ? (
@@ -239,6 +253,10 @@ export default function GamePage() {
             ))}
           </div>
         ) : <div className="muted">没有额外视野。</div>}
+        {privateView.ladyResults?.map((record) => {
+          const target = publicState.players.find((p) => p.id === record.targetId);
+          return <div key={record.round}>第 {record.round} 轮查验：{target ? formatPlayerLabel(target) : "已离开的玩家"} · {ALIGNMENT_LABELS[record.alignment]}</div>;
+        })}
       </PrivateIdentity>
 
       <section className="panel stack">

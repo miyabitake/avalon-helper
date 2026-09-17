@@ -2,6 +2,7 @@ import { GameError, type RoomStatus } from "@/types/game";
 import { ACTION_LABELS, STATUS_LABELS } from "@/lib/labels";
 
 export type GameAction =
+  | "INSPECT_LADY"
   | "JOIN"
   | "LOCK"
   | "UNLOCK"
@@ -17,6 +18,7 @@ export type GameAction =
   | "FORCE_PROGRESS";
 
 export const STATE_ACTIONS: Record<RoomStatus, GameAction[]> = {
+  LADY_INSPECTION: ["INSPECT_LADY", "CALL_ASSASSINATION"],
   LOBBY: ["JOIN", "LOCK", "UNLOCK", "REMOVE_PLAYER", "START"],
   ROLE_ASSIGNED: ["ACK_ROLE", "CALL_ASSASSINATION", "FORCE_PROGRESS"],
   ROLE_VIEWING: ["ACK_ROLE", "CALL_ASSASSINATION", "FORCE_PROGRESS"],

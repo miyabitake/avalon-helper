@@ -27,6 +27,7 @@ export const ALIGNMENT_LABELS: Record<Alignment, string> = {
 };
 
 export const STATUS_LABELS: Record<RoomStatus, string> = {
+  LADY_INSPECTION: "湖中仙女查验",
   LOBBY: "房间准备",
   ROLE_ASSIGNED: "身份已发放",
   ROLE_VIEWING: "查看身份",
@@ -40,6 +41,7 @@ export const STATUS_LABELS: Record<RoomStatus, string> = {
 };
 
 export const ACTION_LABELS: Record<GameAction, string> = {
+  INSPECT_LADY: "查验阵营",
   JOIN: "加入房间",
   LOCK: "锁房",
   UNLOCK: "解锁房间",
@@ -68,6 +70,7 @@ export function gameOverReasonLabel(reason: "COMPLETED" | "PLAYER_LEFT" | null) 
 }
 
 export function flowHint(status: RoomStatus, isCurrentLeader: boolean) {
+  if (status === "LADY_INSPECTION") return "等待湖中仙女持有者查验阵营，完成后进入下一轮。";
   if (status === "ROLE_ASSIGNED" || status === "ROLE_VIEWING") {
     return "请每位玩家查看并确认自己的身份。";
   }

@@ -1,5 +1,6 @@
 import type { Player, Proposal, Quest, QuestSubmission, Room, TeamVote } from "@prisma/client";
 import { buildPrivatePlayerView } from "@/game/privateView";
+import { readLadyRecords } from "@/game/lady";
 import { getQuestTeamSize } from "@/game/rules";
 import type { GamePlayer, PrivatePlayerView, PublicGameState, PublicPlayer } from "@/types/game";
 
@@ -58,6 +59,11 @@ export function buildPublicGameState(room: LoadedRoom): PublicGameState {
 
   return {
     roomCode: room.code,
+    lady: {
+      holderId: room.ladyHolderId,
+      previousHolderIds: room.ladyPreviousHolders,
+      history: readLadyRecords(room.ladyRecords).map(({ round, inspectorId, targetId }) => ({ round, inspectorId, targetId }))
+    },
     status: room.status,
     isLocked: room.isLocked,
     players: players.map(toPublicPlayer),
@@ -144,11 +150,12 @@ export function buildPrivateViewForRoom(room: LoadedRoom, playerId: string): Pri
   const allowedActions: string[] = [];
 
   if (player) {
+    if (room.status === "LADY_INSPECTION" && room.ladyHolderId === player.id) allowedActions.push("INSPECT_LADY");
     if ((room.status === "ROLE_ASSIGNED" || room.status === "ROLE_VIEWING") && !player.hasViewedRole) {
       allowedActions.push("ACK_ROLE");
     }
     if (
-      ["ROLE_ASSIGNED", "ROLE_VIEWING", "TEAM_PROPOSAL", "TEAM_VOTING", "QUEST_SUBMISSION", "QUEST_RESULT"].includes(room.status) &&
+      ["ROLE_ASSIGNED", "ROLE_VIEWING", "TEAM_PROPOSAL", "TEAM_VOTING", "QUEST_SUBMISSION", "QUEST_RESULT", "LADY_INSPECTION"].includes(room.status) &&
       player.role === "ASSASSIN"
     ) {
       allowedActions.push("CALL_ASSASSINATION");
@@ -178,9 +185,11 @@ export function buildPrivateViewForRoom(room: LoadedRoom, playerId: string): Pri
     }
   }
 
-  return buildPrivatePlayerView({
+  return { ...buildPrivatePlayerView({
     players: toGamePlayers(players),
     playerId,
     allowedActions
-  });
+  }), ladyResults: readLadyRecords(room.ladyRecords)
+    .filter((record) => record.inspectorId === playerId)
+    .map(({ round, targetId, alignment }) => ({ round, targetId, alignment })) };
 }

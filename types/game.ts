@@ -11,6 +11,7 @@ export type Role =
   | "MINION";
 
 export type RoomStatus =
+  | "LADY_INSPECTION"
   | "LOBBY"
   | "ROLE_ASSIGNED"
   | "ROLE_VIEWING"
@@ -67,6 +68,7 @@ export type VisiblePlayerHint = {
 };
 
 export type PublicGameState = {
+  lady: { holderId: string | null; previousHolderIds: string[]; history: Array<{ round: number; inspectorId: string; targetId: string }> };
   roomCode: string;
   status: RoomStatus;
   isLocked: boolean;
@@ -119,6 +121,7 @@ export type PublicGameState = {
 };
 
 export type PrivatePlayerView = {
+  ladyResults?: Array<{ round: number; targetId: string; alignment: Alignment }>;
   playerId: string;
   role: Role | null;
   alignment: Alignment | null;
