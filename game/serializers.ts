@@ -113,6 +113,7 @@ export function buildPublicGameState(room: LoadedRoom): PublicGameState {
             .map((player) => ({
               playerId: player.id,
               nickname: player.nickname,
+              seatIndex: player.seatIndex,
               role: player.role!
             }))
         : [],
@@ -121,8 +122,10 @@ export function buildPublicGameState(room: LoadedRoom): PublicGameState {
         ? {
             assassinPlayerId: assassinPlayer.id,
             assassinNickname: assassinPlayer.nickname,
+            assassinSeatIndex: assassinPlayer.seatIndex,
             targetPlayerId: targetPlayer.id,
             targetNickname: targetPlayer.nickname,
+            targetSeatIndex: targetPlayer.seatIndex,
             targetRole: targetPlayer.role,
             hitMerlin: assassination.hitMerlin
           }

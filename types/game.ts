@@ -59,8 +59,10 @@ export type PublicPlayer = {
 };
 
 export type VisiblePlayerHint = {
+  role?: Role;
   playerId: string;
   nickname: string;
+  seatIndex: number;
   hint: "EVIL" | "POSSIBLE_MERLIN";
 };
 
@@ -101,13 +103,16 @@ export type PublicGameState = {
   assassinationRevealPlayers: Array<{
     playerId: string;
     nickname: string;
+    seatIndex: number;
     role: Role;
   }>;
   assassinationResult: {
     assassinPlayerId: string;
     assassinNickname: string;
+    assassinSeatIndex: number;
     targetPlayerId: string;
     targetNickname: string;
+    targetSeatIndex: number;
     targetRole: Role;
     hitMerlin: boolean;
   } | null;

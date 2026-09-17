@@ -6,6 +6,7 @@ import { gameOverReasonLabel, ROLE_LABELS, winnerLabel } from "@/lib/labels";
 import { GameRecords } from "@/components/GameRecords";
 import { HomeButton } from "@/components/HomeButton";
 import { LeaveRoomButton } from "@/components/LeaveRoomButton";
+import { formatPlayerLabel } from "@/lib/playerLabel";
 
 export default function ResultPage() {
   const params = useParams<{ code: string }>();
@@ -38,8 +39,8 @@ export default function ResultPage() {
         {publicState.assassinationResult ? (
           <>
             <div>
-              刺客 <b>{publicState.assassinationResult.assassinNickname}</b> 刺杀了{" "}
-              <b>{publicState.assassinationResult.targetNickname}</b>
+              刺客 <b>{formatPlayerLabel({ nickname: publicState.assassinationResult.assassinNickname, seatIndex: publicState.assassinationResult.assassinSeatIndex })}</b> 刺杀了{" "}
+              <b>{formatPlayerLabel({ nickname: publicState.assassinationResult.targetNickname, seatIndex: publicState.assassinationResult.targetSeatIndex })}</b>
             </div>
             <div className="muted">
               目标真实身份：{ROLE_LABELS[publicState.assassinationResult.targetRole]}

@@ -11,6 +11,8 @@ import { LeaveRoomButton } from "@/components/LeaveRoomButton";
 import { gameOverReasonLabel } from "@/lib/labels";
 import { RoleConfigPreview } from "@/components/RoleConfigPreview";
 import { MAX_PROPOSAL_ATTEMPTS } from "@/game/constants";
+import { PrivateIdentity } from "@/components/PrivateIdentity";
+import { formatPlayerLabel } from "@/lib/playerLabel";
 
 export default function GamePage() {
   const params = useParams<{ code: string }>();
@@ -70,7 +72,7 @@ export default function GamePage() {
         </div>
         <div className="row">
           <span>当前队长</span>
-          <b>{currentLeader?.nickname ?? "暂未确定"}</b>
+          <b>{currentLeader ? formatPlayerLabel(currentLeader) : "暂未确定"}</b>
         </div>
         {(publicState.status === "TEAM_PROPOSAL" || publicState.status === "TEAM_VOTING") ? (
           <div className="row">
@@ -87,7 +89,7 @@ export default function GamePage() {
           <>
             {rejectedAttemptsThisRound > 0 ? (
               <div className="muted">
-                上一次提名已被否决，队长已顺延至 {currentLeader?.nickname ?? "当前队长"}。本轮已否决 {rejectedAttemptsThisRound} / {MAX_PROPOSAL_ATTEMPTS} 次。
+                上一次提名已被否决，队长已顺延至 {currentLeader ? formatPlayerLabel(currentLeader) : "当前队长"}。本轮已否决 {rejectedAttemptsThisRound} / {MAX_PROPOSAL_ATTEMPTS} 次。
               </div>
             ) : null}
             <div className="muted">你是队长，请选择 {publicState.requiredTeamSize} 名任务成员。</div>
@@ -99,14 +101,17 @@ export default function GamePage() {
         {publicState.status === "TEAM_PROPOSAL" && !privateView.allowedActions.includes("PROPOSE_TEAM") ? (
           <div className="muted">
             {rejectedAttemptsThisRound > 0
-              ? `上一次提名已被否决，队长顺延至 ${currentLeader?.nickname ?? "当前队长"}。本轮已否决 ${rejectedAttemptsThisRound} / ${MAX_PROPOSAL_ATTEMPTS} 次，等待其重新提名任务队伍。`
-              : `等待队长 ${currentLeader?.nickname ?? ""} 提名任务队伍。`}
+              ? `上一次提名已被否决，队长顺延至 ${currentLeader ? formatPlayerLabel(currentLeader) : "当前队长"}。本轮已否决 ${rejectedAttemptsThisRound} / ${MAX_PROPOSAL_ATTEMPTS} 次，等待其重新提名任务队伍。`
+              : `等待队长 ${currentLeader ? formatPlayerLabel(currentLeader) : ""} 提名任务队伍。`}
           </div>
         ) : null}
 
         {publicState.status === "TEAM_VOTING" ? (
           <>
-            <div className="muted">队伍：{publicState.currentTeamPlayerIds.map((id) => publicState.players.find((p) => p.id === id)?.nickname).join("、")}</div>
+            <div className="muted">队伍：{publicState.currentTeamPlayerIds.map((id) => {
+              const player = publicState.players.find((p) => p.id === id);
+              return player ? formatPlayerLabel(player) : "";
+            }).filter(Boolean).join("、")}</div>
             <div className="muted">当前为本轮第 {publicState.proposalAttempt} 次提名，若累计 5 次被否决，坏人立即获胜。</div>
             <div className="muted">已投 {publicState.voteSummary ? publicState.players.length - publicState.voteSummary.missing : 0}/{publicState.players.length}</div>
             {privateView.allowedActions.includes("VOTE_TEAM") ? (
@@ -148,7 +153,7 @@ export default function GamePage() {
               {revealedEvilPlayers.length ? (
                 revealedEvilPlayers.map((player) => (
                   <div className="row" key={player.playerId}>
-                    <span>{player.nickname}</span>
+                    <span>{formatPlayerLabel(player)}</span>
                     <span className="pill">{ROLE_LABELS[player.role]}</span>
                   </div>
                 ))
@@ -174,8 +179,8 @@ export default function GamePage() {
             {publicState.assassinationResult ? (
               <div className="stack">
                 <div>
-                  刺客 <b>{publicState.assassinationResult.assassinNickname}</b> 刺杀了{" "}
-                  <b>{publicState.assassinationResult.targetNickname}</b>
+                  刺客 <b>{formatPlayerLabel({ nickname: publicState.assassinationResult.assassinNickname, seatIndex: publicState.assassinationResult.assassinSeatIndex })}</b> 刺杀了{" "}
+                  <b>{formatPlayerLabel({ nickname: publicState.assassinationResult.targetNickname, seatIndex: publicState.assassinationResult.targetSeatIndex })}</b>
                 </div>
                 <div className="muted">
                   目标真实身份：{ROLE_LABELS[publicState.assassinationResult.targetRole]}
@@ -210,8 +215,7 @@ export default function GamePage() {
         ) : null}
       </section>
 
-      <section className="panel stack">
-        <div className="section-title">你的身份</div>
+      <PrivateIdentity key={`${code}:${privateView.playerId}:${privateView.role}:${publicState.status === "ROLE_ASSIGNED"}`}>
         <div className={`identity-card ${privateView.alignment === "EVIL" ? "evil" : "good"}`}>
           <div className="identity-title">
             {privateView.role ? ROLE_LABELS[privateView.role] : "未发牌"}
@@ -229,13 +233,13 @@ export default function GamePage() {
           <div className="stack">
             {privateView.visiblePlayers.map((item) => (
               <div className="row" key={item.playerId}>
-                <span>{item.nickname}</span>
-                <span className="pill">{item.hint === "EVIL" ? "坏人" : "可能是梅林"}</span>
+                <span>{formatPlayerLabel(item)}</span>
+                <span className="pill">{item.role ? ROLE_LABELS[item.role] : item.hint === "EVIL" ? "坏人" : "可能是梅林"}</span>
               </div>
             ))}
           </div>
         ) : <div className="muted">没有额外视野。</div>}
-      </section>
+      </PrivateIdentity>
 
       <section className="panel stack">
         <div className="section-title">任务比分</div>

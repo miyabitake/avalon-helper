@@ -6,6 +6,7 @@ import { PlayerList } from "@/components/PlayerList";
 import { HomeButton } from "@/components/HomeButton";
 import { RoleConfigPreview } from "@/components/RoleConfigPreview";
 import { LeaveRoomButton } from "@/components/LeaveRoomButton";
+import { formatPlayerLabel } from "@/lib/playerLabel";
 
 export default function RoomPage() {
   const params = useParams<{ code: string }>();
@@ -55,7 +56,7 @@ export default function RoomPage() {
           </div>
           {publicState.players.filter((player) => player.id !== privateView?.playerId).map((player) => (
             <div className="row" key={player.id}>
-              <span>{player.nickname}</span>
+              <span>{formatPlayerLabel(player)}</span>
               <button className="btn secondary" onClick={() => act("remove-player", { targetPlayerId: player.id })}>移除</button>
             </div>
           ))}

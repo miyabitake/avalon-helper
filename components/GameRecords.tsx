@@ -1,8 +1,14 @@
 import type { PublicGameState } from "@/types/game";
+import { formatPlayerLabel } from "@/lib/playerLabel";
 
 function names(ids: string[], state: PublicGameState) {
   if (!ids.length) return "无";
-  return ids.map((id) => state.players.find((player) => player.id === id)?.nickname ?? "未知玩家").join("、");
+  return ids
+    .map((id) => {
+      const player = state.players.find((item) => item.id === id);
+      return player ? formatPlayerLabel(player) : "未知玩家";
+    })
+    .join("、");
 }
 
 export function GameRecords({ state }: { state: PublicGameState }) {

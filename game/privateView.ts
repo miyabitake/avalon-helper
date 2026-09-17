@@ -8,19 +8,19 @@ export function getVisiblePlayersForRole(role: Role | null, players: GamePlayer[
   if (role === "MERLIN") {
     return players
       .filter((player) => player.alignment === "EVIL" && player.role !== "MORDRED")
-      .map((player) => ({ playerId: player.id, nickname: player.nickname, hint: "EVIL" as const }));
+      .map((player) => ({ playerId: player.id, nickname: player.nickname, seatIndex: player.seatIndex, hint: "EVIL" as const }));
   }
 
   if (role === "PERCIVAL") {
     return players
       .filter((player) => player.role === "MERLIN" || player.role === "MORGANA")
-      .map((player) => ({ playerId: player.id, nickname: player.nickname, hint: "POSSIBLE_MERLIN" as const }));
+      .map((player) => ({ playerId: player.id, nickname: player.nickname, seatIndex: player.seatIndex, hint: "POSSIBLE_MERLIN" as const }));
   }
 
   if (role === "ASSASSIN" || role === "MORGANA" || role === "MORDRED" || role === "MINION") {
     return players
       .filter((player) => player.id !== selfPlayerId && player.alignment === "EVIL" && player.role !== "OBERON")
-      .map((player) => ({ playerId: player.id, nickname: player.nickname, hint: "EVIL" as const }));
+      .map((player) => ({ playerId: player.id, nickname: player.nickname, seatIndex: player.seatIndex, role: player.role ?? undefined, hint: "EVIL" as const }));
   }
 
   return [];
@@ -52,4 +52,3 @@ export function buildPrivatePlayerView(input: {
     allowedActions: input.allowedActions
   };
 }
-
